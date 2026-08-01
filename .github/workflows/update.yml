@@ -1,0 +1,40 @@
+name: Update mathlib
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # weekly, Monday 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-for-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      is-update-available: ${{ steps.check-for-updates.outputs.is-update-available }}
+      new-tags: ${{ steps.check-for-updates.outputs.new-tags }}
+    steps:
+      - name: Check for mathlib updates
+        id: check-for-updates
+        uses: leanprover-community/mathlib-update-action@30121004826adb85f006e31ce5d25a33ce79c7a6 # 2025-06-16
+        with:
+          intermediate_releases: stable # walk the stable-tag ladder; never RCs or master
+
+  do-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    needs: check-for-updates
+    if: ${{ needs.check-for-updates.outputs.is-update-available == 'true' }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        tag: ${{ fromJSON(needs.check-for-updates.outputs.new-tags) }}
+    steps:
+      - name: Update to ${{ matrix.tag }}
+        id: update-the-repo
+        uses: leanprover-community/mathlib-update-action/do-update@30121004826adb85f006e31ce5d25a33ce79c7a6 # 2025-06-16
+        with:
+          tag: ${{ matrix.tag }}
+          on_update_succeeds: pr
+          on_update_fails: issue

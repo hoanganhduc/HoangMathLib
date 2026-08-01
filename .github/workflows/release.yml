@@ -1,0 +1,21 @@
+name: Tag Lean release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - lean-toolchain
+
+jobs:
+  lean-release-tag:
+    name: Add Lean release tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Git tags only (do-release defaults to false). These feed Reservoir and
+      # give toolchain-addressable revs; paper artifacts pin commit SHAs or
+      # per-paper tags instead (see README).
+      - uses: leanprover-community/lean-release-tag@9ca7ed09e240259871327bfc3a3a8d8c4bcb41aa
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

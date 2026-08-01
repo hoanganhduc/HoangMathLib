@@ -1,0 +1,12 @@
+title: HoangMathLib
+description: >-
+  Duc A. Hoang's staging library for Lean 4 formalizations in graph theory and
+  combinatorial reconfiguration, on their way to mathlib.
+baseurl: "/HoangMathLib"
+url: "https://hoanganhduc.github.io"
+theme: minima
+header_pages:
+  - upstreaming.md
+exclude:
+  - Gemfile
+  - Gemfile.lock

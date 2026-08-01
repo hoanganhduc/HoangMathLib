@@ -1,0 +1,39 @@
+name: mathlib master probe
+
+# Probes whether the staging subtree (HoangMathLib/Mathlib/**) still builds
+# against mathlib master, WITHOUT the pinned stable rev on main ever changing.
+# All edits happen in the runner's working tree; nothing is committed or pushed.
+# A red run here means upstreaming will need porting work (module headers,
+# deprecations) — exactly the signal `prepare-upstream` consumes.
+
+on:
+  schedule:
+    - cron: "0 3 * * 3" # weekly, Wednesday 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://elan.lean-lang.org/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Point mathlib at master (working tree only)
+        run: |
+          set -euo pipefail
+          sed -i 's|^rev = ".*"$|rev = "master"|' lakefile.toml
+          # toolchain must be fetched BEFORE lake update (mathlib wiki order)
+          curl -sSfL https://raw.githubusercontent.com/leanprover-community/mathlib4/master/lean-toolchain -o lean-toolchain
+
+      - name: Update mathlib pin
+        run: lake update mathlib # post-update hook fetches the mathlib cache
+
+      - name: Get mathlib cache (belt and braces)
+        run: lake exe cache get
+
+      - name: Build staging subtree only
+        run: lake build HoangMathLibStaging

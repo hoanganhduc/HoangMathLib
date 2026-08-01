@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: >-
+  If you use results from this library, please cite it using this metadata,
+  including the exact commit SHA you depend on.
+title: HoangMathLib
+type: software
+authors:
+  - family-names: Hoang
+    given-names: Duc A.
+repository-code: "https://github.com/hoanganhduc/HoangMathLib"
+license: Apache-2.0
+keywords:
+  - Lean 4
+  - mathlib
+  - graph theory
+  - combinatorial reconfiguration

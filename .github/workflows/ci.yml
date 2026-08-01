@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "website/**"
+      - "*.md"
+  pull_request:
+    paths-ignore:
+      - "website/**"
+      - "*.md"
+  workflow_dispatch:
+
+# Rapid pushes cancel superseded runs instead of queueing behind them.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  style:
+    name: Import discipline and staging hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Forbid bare `import Mathlib` (library tree; scripts/ exempt)
+        run: |
+          set -euo pipefail
+          # full module-system import grammar: [public|private] [meta] import [all]
+          if grep -rn --include='*.lean' -E '^(public |private )?(meta )?import (all )?Mathlib$' HoangMathLib HoangMathLib.lean; then
+            echo '::error::bare `import Mathlib` found; use precise imports'
+            exit 1
+          fi
+
+      - name: Staged files may import only Mathlib.* and staged siblings
+        run: |
+          set -euo pipefail
+          bad=0
+          while IFS= read -r -d '' f; do
+            while IFS= read -r line; do
+              mod=$(echo "$line" | sed -E 's/^(public |private )?(meta )?import (all )?//')
+              case "$mod" in
+                Mathlib.*|HoangMathLib.Mathlib.*) ;;
+                *) echo "::error file=$f::staged file imports non-staged module: $mod"; bad=1 ;;
+              esac
+            done < <(grep -E '^(public |private )?(meta )?import ' "$f")
+          done < <(find HoangMathLib/Mathlib -name '*.lean' -print0)
+          exit $bad
+
+      - name: Root import file is complete
+        run: |
+          set -euo pipefail
+          # every .lean module under HoangMathLib/ must be imported from HoangMathLib.lean
+          missing=0
+          while IFS= read -r f; do
+            mod=$(echo "${f%.lean}" | tr '/' '.')
+            if ! grep -qE "^import ${mod}$" HoangMathLib.lean; then
+              echo "::error file=$f::module $mod is not imported from HoangMathLib.lean"
+              missing=1
+            fi
+          done < <(find HoangMathLib -name '*.lean' | sort)
+          exit $missing
+
+      - name: Staging tree is sorry-free
+        run: |
+          set -euo pipefail
+          # word-boundary grep; comments containing `sorry` are rejected too, deliberately
+          if grep -rn --include='*.lean' -w 'sorry' HoangMathLib/Mathlib; then
+            echo '::error::sorry found in the staging tree (HoangMathLib/Mathlib/**)'
+            exit 1
+          fi
+
+  build:
+    name: Build and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Two cache layers, both on: use-mathlib-cache (auto) fetches mathlib's
+      # prebuilt oleans via `lake exe cache get`; use-github-cache (default
+      # true) persists .lake between runs. If the .lake cache ever thrashes
+      # against the 10 GB repo quota, set use-github-cache: false and rely on
+      # the mathlib cache alone (PNT+ pattern).
+      - uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9 # v1.5.0
+        with:
+          build-args: '--iofail'
+          lint: true
