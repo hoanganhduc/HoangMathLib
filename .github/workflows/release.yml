@@ -9,6 +9,11 @@ on:
 jobs:
   lean-release-tag:
     name: Add Lean release tag
+    # Skip when the push has no parent commit (first push to a branch, or a
+    # history rewrite): the action diffs `git log before..after`, and the null
+    # `before` SHA makes that range invalid (this failed exactly once, on the
+    # repo's initial push; the v4.32.2 tag was created manually instead).
+    if: github.event.before != '0000000000000000000000000000000000000000'
     runs-on: ubuntu-latest
     permissions:
       contents: write
